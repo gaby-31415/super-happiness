@@ -746,13 +746,29 @@ def analyze_performance(df_perf: pd.DataFrame) -> dict:
         return {"traffic_trend": {}, "position_distribution": {}}
 
     import numpy as np
-    peak_idx = int(np.nanargmax(vals))
-    trough_idx = int(np.nanargmin(vals))
-    peak_month = months[peak_idx]
-    trough_month = months[trough_idx]
-    first = next((x for x in vals if not pd.isna(x)), float("nan"))
-    last = next((x for x in vals[::-1] if not pd.isna(x)), float("nan"))
-    direction = "up" if last > first else ("down" if last < first else "flat")
+
+    has_valid = np.any(~np.isnan(vals))
+    if has_valid:
+        peak_idx = int(np.nanargmax(vals))
+        trough_idx = int(np.nanargmin(vals))
+        peak_month = months[peak_idx] if months else None
+        trough_month = months[trough_idx] if months else None
+    else:
+        peak_idx = trough_idx = None
+        peak_month = trough_month = None
+
+    def _first_non_nan(sequence):
+        for value in sequence:
+            if not pd.isna(value):
+                return value
+        return None
+
+    first = _first_non_nan(vals)
+    last = _first_non_nan(vals[::-1])
+    if first is None or last is None:
+        direction = "flat"
+    else:
+        direction = "up" if last > first else ("down" if last < first else "flat")
 
     latest = trend.sort_values("date").tail(1)
     buckets = {}
